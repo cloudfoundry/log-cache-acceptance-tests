@@ -1,105 +1,82 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
-	"code.cloudfoundry.org/log-cache-acceptance-tests/lca"
-
-	"github.com/cloudfoundry-incubator/cf-test-helpers/cf"
-	"github.com/cloudfoundry-incubator/cf-test-helpers/generator"
-
+	logcache "code.cloudfoundry.org/go-log-cache"
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	lca "code.cloudfoundry.org/log-cache-acceptance-tests"
+	uuid "github.com/nu7hatch/gouuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gexec"
+	"google.golang.org/grpc"
 )
 
-var _ = Describe("v1", func() {
-	Context("under heavy ingress load", func() {
-		// log emitter setup
-		logEmitterApp := PushLogEmitter("")
-		fmt.Println(logEmitterApp)
+var _ = Describe("", func() {
+	It("makes emitted logs available", func() {
+		s := sourceID()
 
-		Describe("/read/sourceID", func() {
-			It("returns a 2xx response", func() {
-			})
+		start := time.Now()
+		emitLogs([]string{s})
+		waitForLogs()
+		end := time.Now()
 
-			It("returns envelopes in valid json format", func() {
-			})
-		})
-
-		// Describe("/meta", func() {
-
-		// })
+		received := countEnvelopes(start, end, s)
+		Expect(received).To(BeNumerically(">", 9900))
 	})
 })
 
-func PushLogEmitter(path string) string {
-	appName := generator.PrefixedRandomName("LOG-EMITTER", "")
-	EventuallyWithOffset(1, cf.Cf(
-		"push",
-		appName,
-		"--no-start",
-		"-p", path,
-	), 45*time.Second).Should(Exit(0), "Failed to push log emitter app")
+func emitLogs(sourceIDs []string) {
+	cfg := lca.Config()
+	query := strings.Join(sourceIDs, "&sourceIDs=")
+	logUrl := fmt.Sprintf("http://%s/emit?sourceIDs=%s", cfg.LogEmitterAddr, query)
 
-	EventuallyWithOffset(1, cf.Cf(
-		"set-env",
-		appName,
-		"ADDR",
-		lca.Config().LogEmitterAddr,
-	), 45*time.Second).Should(Exit(0), "Failed to restart log emitter app")
+	resp, err := http.Get(logUrl)
 
-	EventuallyWithOffset(1, cf.Cf(
-		"set-env",
-		appName,
-		"LOG_CACHE_ADDR",
-		lca.Config().LogCacheAddr,
-	), 45*time.Second).Should(Exit(0), "Failed to LOG_CACHE_ADDR env var for log emitter app")
-
-	EventuallyWithOffset(1, cf.Cf(
-		"set-env",
-		appName,
-		"CA_PATH",
-		lca.Config().CAPath,
-	), 45*time.Second).Should(Exit(0), "Failed to CA_PATH env var for log emitter app")
-
-	EventuallyWithOffset(1, cf.Cf(
-		"set-env",
-		appName,
-		"CERT_PATH",
-		lca.Config().CertPath,
-	), 45*time.Second).Should(Exit(0), "Failed to CERT_PATH env var for log emitter app")
-
-	EventuallyWithOffset(1, cf.Cf(
-		"set-env",
-		appName,
-		"KEY_PATH",
-		lca.Config().KeyPath,
-	), 45*time.Second).Should(Exit(0), "Failed to KEY_PATH env var for log emitter app")
-
-	EventuallyWithOffset(1, cf.Cf(
-		"restart",
-		appName,
-	), 45*time.Second).Should(Exit(0), "Failed to restart log emitter app")
-
-	return appName
+	Expect(err).ToNot(HaveOccurred())
+	Expect(resp.StatusCode).To(Equal(http.StatusOK))
 }
 
-func WriteToLogsApp(doneChan chan struct{}, sourceIDs []string, logEmitterAppName string) {
+func waitForLogs() {
 	cfg := lca.Config()
-	logUrl := fmt.Sprintf("http://%s.%s/emit/%s", logEmitterAppName, cfg.CFDomain, sourceIDs)
-	defer GinkgoRecover()
-	for {
-		select {
-		case <-doneChan:
-			return
-		default:
-			resp, err := http.Get(logUrl)
-			ExpectWithOffset(1, err).ToNot(HaveOccurred())
-			ExpectWithOffset(1, resp.StatusCode).To(Equal(http.StatusOK))
-			time.Sleep(3 * time.Second)
-		}
-	}
+	time.Sleep(cfg.WaitForLogsTimeout)
+}
+
+func countEnvelopes(start, end time.Time, sourceID string) int {
+	cfg := lca.Config()
+	client := logcache.NewClient(
+		cfg.LogCacheAddr,
+		logcache.WithViaGRPC(
+			grpc.WithTransportCredentials(
+				cfg.TLS.Credentials("log-cache"),
+			),
+		),
+	)
+
+	var receivedCount int
+	logcache.Walk(
+		context.Background(),
+		sourceID,
+		func(envelopes []*loggregator_v2.Envelope) bool {
+			receivedCount += len(envelopes)
+			return receivedCount < 10000
+		},
+		client.Read,
+		logcache.WithWalkStartTime(start),
+		logcache.WithWalkEndTime(end),
+		logcache.WithWalkBackoff(logcache.NewRetryBackoff(50*time.Millisecond, 100)),
+	)
+
+	return receivedCount
+}
+
+func sourceID() string {
+	u, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+
+	return u.String()
 }
