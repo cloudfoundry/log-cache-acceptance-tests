@@ -9,7 +9,7 @@ import (
 
 	logcache "code.cloudfoundry.org/go-log-cache"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	lca "code.cloudfoundry.org/log-cache-acceptance-tests"
+	lca "github.com/cloudfoundry/log-cache-acceptance-tests"
 	uuid "github.com/nu7hatch/gouuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

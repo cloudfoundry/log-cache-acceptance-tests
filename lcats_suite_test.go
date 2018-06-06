@@ -3,7 +3,7 @@ package lca_test
 import (
 	"testing"
 
-	_ "code.cloudfoundry.org/log-cache-acceptance-tests/tests"
+	_ "github.com/cloudfoundry/log-cache-acceptance-tests/tests"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
