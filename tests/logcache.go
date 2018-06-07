@@ -8,6 +8,7 @@ import (
 	"time"
 
 	logcache "code.cloudfoundry.org/go-log-cache"
+	"code.cloudfoundry.org/go-log-cache/rpc/logcache_v1"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	lca "github.com/cloudfoundry/log-cache-acceptance-tests"
 	uuid "github.com/nu7hatch/gouuid"
@@ -16,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var _ = Describe("", func() {
+var _ = Describe("LogCache", func() {
 	It("makes emitted logs available", func() {
 		s := sourceID()
 
@@ -26,7 +27,20 @@ var _ = Describe("", func() {
 		end := time.Now()
 
 		received := countEnvelopes(start, end, s)
-		Expect(received).To(BeNumerically(">", 9900))
+		Expect(received).To(BeNumerically(">=", 9900))
+	})
+
+	It("source ids and counts available from meta", func() {
+		s := sourceID()
+
+		emitLogs([]string{s})
+		waitForLogs()
+		m := meta()
+
+		Expect(m).To(HaveKey(s))
+
+		count := m[s].GetCount()
+		Expect(count).To(BeNumerically(">=", 9900))
 	})
 })
 
@@ -72,6 +86,21 @@ func countEnvelopes(start, end time.Time, sourceID string) int {
 	)
 
 	return receivedCount
+}
+
+func meta() map[string]*logcache_v1.MetaInfo {
+	cfg := lca.Config()
+	client := logcache.NewClient(
+		cfg.LogCacheAddr,
+		logcache.WithViaGRPC(
+			grpc.WithTransportCredentials(
+				cfg.TLS.Credentials("log-cache"),
+			),
+		),
+	)
+	meta, err := client.Meta(context.Background())
+	Expect(err).ToNot(HaveOccurred())
+	return meta
 }
 
 func sourceID() string {
