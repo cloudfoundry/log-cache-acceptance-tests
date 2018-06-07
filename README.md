@@ -1,3 +1,4 @@
 # Log Cache Acceptance Tests
-To be run against a standalone log cache to measure performance under heavy
-load.
+
+Acceptance tests to be run against a standalone log cache that cover Log Cache
+functionality.
