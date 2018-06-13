@@ -8,8 +8,9 @@ import (
 )
 
 type TestConfig struct {
-	LogCacheAddr   string `env:"LOG_CACHE_ADDR,   required"`
-	LogEmitterAddr string `env:"LOG_EMITTER_ADDR, required"`
+	LogCacheAddr    string `env:"LOG_CACHE_ADDR,    required"`
+	GroupReaderAddr string `env:"GROUP_READER_ADDR, required"`
+	LogEmitterAddr  string `env:"LOG_EMITTER_ADDR,  required"`
 
 	TLS TLS
 
