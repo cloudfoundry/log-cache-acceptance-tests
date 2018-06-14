@@ -89,7 +89,7 @@ var _ = Describe("LogCache", func() {
 		Expect(received).To(BeNumerically(">=", 2*9900))
 	})
 
-	It("creates a group and reads from it", func() {
+	It("can get metadata from a shard group", func() {
 		s1 := newUUID()
 		s2 := newUUID()
 
