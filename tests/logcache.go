@@ -86,7 +86,7 @@ var _ = Describe("LogCache", func() {
 
 		reader := grc.BuildReader(rand.Uint64())
 		received := countEnvelopes(start, end, reader, groupName, 20000)
-		Expect(received).To(BeNumerically(">=", 2*9900))
+		Expect(received).To(BeNumerically(">=", 2*7500))
 	})
 
 	It("can get metadata from a shard group", func() {
