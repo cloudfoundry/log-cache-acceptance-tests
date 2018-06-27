@@ -8,11 +8,18 @@ import (
 )
 
 type TestConfig struct {
-	LogCacheAddr    string `env:"LOG_CACHE_ADDR,    required"`
-	GroupReaderAddr string `env:"GROUP_READER_ADDR, required"`
-	LogEmitterAddr  string `env:"LOG_EMITTER_ADDR,  required"`
+	LogCacheAddr           string `env:"LOG_CACHE_ADDR,    required"`
+	GroupReaderAddr        string `env:"GROUP_READER_ADDR, required"`
+	LogEmitterAddr         string `env:"LOG_EMITTER_ADDR,  required"`
+	LogCacheCFAuthProxyURL string `env:"LOG_CACHE_CF_AUTH_PROXY_URL",  required"`
 
 	TLS TLS
+
+	UAAURL       string `env:"UAA_URL"`
+	ClientID     string `env:"CLIENT_ID"`
+	ClientSecret string `env:"CLIENT_SECRET, noreport"`
+
+	SkipCertVerify bool `env:"SKIP_CERT_VERIFY"`
 
 	DefaultTimeout     time.Duration `env:"DEFAULT_TIMEOUT"`
 	WaitForLogsTimeout time.Duration `env:"LOG_EMIT_TIMEOUT"`
