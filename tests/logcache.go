@@ -59,7 +59,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 9900))
 		})
 
-		It("lists the available source ids that log cache has persisted", func() {
+		XIt("lists the available source ids that log cache has persisted", func() {
 			s := newUUID()
 
 			emitLogs([]string{s})
@@ -169,7 +169,7 @@ var _ = Describe("LogCache", func() {
 				cfg.LogCacheCFAuthProxyURL,
 				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
-			
+
 			//grc = logcache.NewShardGroupReaderClient(
 			//	cfg.LogCacheCFAuthProxyURL,
 			//	logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
@@ -188,7 +188,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 9900))
 		})
 
-		It("lists the available source ids that log cache has persisted", func() {
+		XIt("lists the available source ids that log cache has persisted", func() {
 			s := newUUID()
 
 			emitLogs([]string{s})
