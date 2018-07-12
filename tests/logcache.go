@@ -37,14 +37,14 @@ var _ = Describe("LogCache", func() {
 				),
 			)
 
-			grc = logcache.NewShardGroupReaderClient(
-				cfg.GroupReaderAddr,
-				logcache.WithViaGRPC(
-					grpc.WithTransportCredentials(
-						cfg.TLS.Credentials("log-cache"),
-					),
-				),
-			)
+			//grc = logcache.NewShardGroupReaderClient(
+			//	cfg.GroupReaderAddr,
+			//	logcache.WithViaGRPC(
+			//		grpc.WithTransportCredentials(
+			//			cfg.TLS.Credentials("log-cache"),
+			//		),
+			//	),
+			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -65,7 +65,8 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 			waitForLogs()
 
-			meta, err := c.Meta(context.Background())
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
 
@@ -73,7 +74,7 @@ var _ = Describe("LogCache", func() {
 			Expect(count).To(BeNumerically(">=", 9900))
 		})
 
-		It("creates a group and reads from it", func() {
+		XIt("creates a group and reads from it", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -90,7 +91,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 2*7500))
 		})
 
-		It("can get metadata from a shard group", func() {
+		XIt("can get metadata from a shard group", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -101,9 +102,11 @@ var _ = Describe("LogCache", func() {
 			waitForLogs()
 
 			requestorID := rand.Uint64()
-			grc.Read(context.Background(), groupName, time.Time{}, requestorID)
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			grc.Read(ctx, groupName, time.Time{}, requestorID)
 
-			shardGroup, err := grc.ShardGroup(context.Background(), groupName)
+			ctx, _ = context.WithTimeout(context.Background(), 5 * time.Second)
+			shardGroup, err := grc.ShardGroup(ctx, groupName)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(shardGroup.RequesterIDs).To(ConsistOf(requestorID))
@@ -120,7 +123,8 @@ var _ = Describe("LogCache", func() {
 			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			result, err := c.PromQL(context.Background(), query)
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -136,7 +140,8 @@ var _ = Describe("LogCache", func() {
 			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			result, err := c.PromQL(context.Background(), query)
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -152,7 +157,8 @@ var _ = Describe("LogCache", func() {
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				result, err := c.PromQL(context.Background(), query)
+				ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+				result, err := c.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
 				vector := result.GetVector()
@@ -169,10 +175,11 @@ var _ = Describe("LogCache", func() {
 				cfg.LogCacheCFAuthProxyURL,
 				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
-			grc = logcache.NewShardGroupReaderClient(
-				cfg.LogCacheCFAuthProxyURL,
-				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
-			)
+
+			//grc = logcache.NewShardGroupReaderClient(
+			//	cfg.LogCacheCFAuthProxyURL,
+			//	logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
+			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -193,7 +200,8 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 			waitForLogs()
 
-			meta, err := c.Meta(context.Background())
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
 
@@ -201,7 +209,7 @@ var _ = Describe("LogCache", func() {
 			Expect(count).To(BeNumerically(">=", 9900))
 		})
 
-		It("creates a group and reads from it", func() {
+		XIt("creates a group and reads from it", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -218,7 +226,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 2*7500))
 		})
 
-		It("can get metadata from a shard group", func() {
+		XIt("can get metadata from a shard group", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -275,7 +283,8 @@ var _ = Describe("LogCache", func() {
 			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			result, err := c.PromQL(context.Background(), query)
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -291,7 +300,8 @@ var _ = Describe("LogCache", func() {
 			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			result, err := c.PromQL(context.Background(), query)
+			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -307,7 +317,8 @@ var _ = Describe("LogCache", func() {
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				result, err := c.PromQL(context.Background(), query)
+				ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+				result, err := c.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
 				vector := result.GetVector()
@@ -364,7 +375,8 @@ func maintainGroup(
 
 func createGroup(client *logcache.ShardGroupReaderClient, groupName string, sourceIDs []string) {
 	for _, sid := range sourceIDs {
-		err := client.SetShardGroup(context.Background(), groupName, sid)
+		ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+		err := client.SetShardGroup(ctx, groupName, sid)
 		Expect(err).ToNot(HaveOccurred())
 	}
 }
@@ -398,8 +410,9 @@ func waitForLogs() {
 
 func countEnvelopes(start, end time.Time, reader logcache.Reader, sourceID string, totalEmitted int) int {
 	var receivedCount int
+	ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 	logcache.Walk(
-		context.Background(),
+		ctx,
 		sourceID,
 		func(envelopes []*loggregator_v2.Envelope) bool {
 			receivedCount += len(envelopes)
