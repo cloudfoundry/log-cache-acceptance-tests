@@ -37,14 +37,14 @@ var _ = Describe("LogCache", func() {
 				),
 			)
 
-			grc = logcache.NewShardGroupReaderClient(
-				cfg.GroupReaderAddr,
-				logcache.WithViaGRPC(
-					grpc.WithTransportCredentials(
-						cfg.TLS.Credentials("log-cache"),
-					),
-				),
-			)
+			//grc = logcache.NewShardGroupReaderClient(
+			//	cfg.GroupReaderAddr,
+			//	logcache.WithViaGRPC(
+			//		grpc.WithTransportCredentials(
+			//			cfg.TLS.Credentials("log-cache"),
+			//		),
+			//	),
+			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -73,7 +73,7 @@ var _ = Describe("LogCache", func() {
 			Expect(count).To(BeNumerically(">=", 9900))
 		})
 
-		It("creates a group and reads from it", func() {
+		XIt("creates a group and reads from it", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -90,7 +90,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 2*7500))
 		})
 
-		It("can get metadata from a shard group", func() {
+		XIt("can get metadata from a shard group", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -169,10 +169,11 @@ var _ = Describe("LogCache", func() {
 				cfg.LogCacheCFAuthProxyURL,
 				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
-			grc = logcache.NewShardGroupReaderClient(
-				cfg.LogCacheCFAuthProxyURL,
-				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
-			)
+			
+			//grc = logcache.NewShardGroupReaderClient(
+			//	cfg.LogCacheCFAuthProxyURL,
+			//	logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
+			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -201,7 +202,7 @@ var _ = Describe("LogCache", func() {
 			Expect(count).To(BeNumerically(">=", 9900))
 		})
 
-		It("creates a group and reads from it", func() {
+		XIt("creates a group and reads from it", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
@@ -218,7 +219,7 @@ var _ = Describe("LogCache", func() {
 			Expect(received).To(BeNumerically(">=", 2*7500))
 		})
 
-		It("can get metadata from a shard group", func() {
+		XIt("can get metadata from a shard group", func() {
 			s1 := newUUID()
 			s2 := newUUID()
 
