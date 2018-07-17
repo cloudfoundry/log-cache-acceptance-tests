@@ -191,7 +191,7 @@ var _ = Describe("LogCache", func() {
 			end := time.Now()
 
 			received := countEnvelopes(start, end, c.Read, s, 10000)
-			Expect(received).To(BeNumerically(">=", 9900))
+			Expect(received).To(BeNumerically(">=", 9000))
 		})
 
 		It("lists the available source ids that log cache has persisted", func() {
