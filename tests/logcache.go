@@ -52,7 +52,6 @@ var _ = Describe("LogCache", func() {
 
 			start := time.Now()
 			emitLogs([]string{s})
-			waitForLogs()
 			end := time.Now()
 
 			received := countEnvelopes(start, end, c.Read, s, 10000)
@@ -63,9 +62,8 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitLogs([]string{s})
-			waitForLogs()
 
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
@@ -83,7 +81,6 @@ var _ = Describe("LogCache", func() {
 
 			start := time.Now()
 			emitLogs([]string{s1, s2})
-			waitForLogs()
 			end := time.Now()
 
 			reader := grc.BuildReader(rand.Uint64())
@@ -99,13 +96,12 @@ var _ = Describe("LogCache", func() {
 			createGroup(grc, groupName, []string{s1, s2})
 
 			emitLogs([]string{s1, s2})
-			waitForLogs()
 
 			requestorID := rand.Uint64()
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			grc.Read(ctx, groupName, time.Time{}, requestorID)
 
-			ctx, _ = context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 			shardGroup, err := grc.ShardGroup(ctx, groupName)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -120,10 +116,9 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -137,10 +132,9 @@ var _ = Describe("LogCache", func() {
 			s2 := newUUID()
 
 			emitGauges([]string{s, s2})
-			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -153,11 +147,10 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			waitForLogs()
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 				result, err := c.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -187,7 +180,6 @@ var _ = Describe("LogCache", func() {
 
 			start := time.Now()
 			emitLogs([]string{s})
-			waitForLogs()
 			end := time.Now()
 
 			received := countEnvelopes(start, end, c.Read, s, 10000)
@@ -198,9 +190,8 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitLogs([]string{s})
-			waitForLogs()
 
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
@@ -218,7 +209,6 @@ var _ = Describe("LogCache", func() {
 
 			start := time.Now()
 			emitLogs([]string{s1, s2})
-			waitForLogs()
 			end := time.Now()
 
 			reader := grc.BuildReader(rand.Uint64())
@@ -241,7 +231,6 @@ var _ = Describe("LogCache", func() {
 
 			start := time.Now()
 			emitLogs([]string{s1, s2})
-			time.Sleep(15 * time.Second)
 			end := time.Now()
 
 			var receivedCount int
@@ -280,10 +269,9 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -297,10 +285,9 @@ var _ = Describe("LogCache", func() {
 			s2 := newUUID()
 
 			emitGauges([]string{s, s2})
-			waitForLogs()
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -313,11 +300,10 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			waitForLogs()
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 				result, err := c.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -375,7 +361,7 @@ func maintainGroup(
 
 func createGroup(client *logcache.ShardGroupReaderClient, groupName string, sourceIDs []string) {
 	for _, sid := range sourceIDs {
-		ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		err := client.SetShardGroup(ctx, groupName, sid)
 		Expect(err).ToNot(HaveOccurred())
 	}
@@ -390,17 +376,19 @@ func emitLogs(sourceIDs []string) {
 
 	Expect(err).ToNot(HaveOccurred())
 	Expect(res.StatusCode).To(Equal(http.StatusOK))
+	waitForLogs()
 }
 
 func emitGauges(sourceIDs []string) {
 	cfg := lca.Config()
 	query := strings.Join(sourceIDs, "&sourceIDs=")
-	logUrl := fmt.Sprintf("http://%s/emit-gauges?sourceIDs=%s", cfg.LogEmitterAddr, query)
+	logurl := fmt.sprintf("http://%s/emit-gauges?sourceids=%s", cfg.logemitteraddr, query)
 
 	res, err := http.Get(logUrl)
 
 	Expect(err).ToNot(HaveOccurred())
 	Expect(res.StatusCode).To(Equal(http.StatusOK))
+	waitForLogs()
 }
 
 func waitForLogs() {
@@ -410,7 +398,7 @@ func waitForLogs() {
 
 func countEnvelopes(start, end time.Time, reader logcache.Reader, sourceID string, totalEmitted int) int {
 	var receivedCount int
-	ctx, _ := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	logcache.Walk(
 		ctx,
 		sourceID,
