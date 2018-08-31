@@ -36,15 +36,6 @@ var _ = Describe("LogCache", func() {
 					),
 				),
 			)
-
-			//grc = logcache.NewShardGroupReaderClient(
-			//	cfg.GroupReaderAddr,
-			//	logcache.WithViaGRPC(
-			//		grpc.WithTransportCredentials(
-			//			cfg.TLS.Credentials("log-cache"),
-			//		),
-			//	),
-			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -112,7 +103,7 @@ var _ = Describe("LogCache", func() {
 			))
 		})
 
-		It("can query for emitted metrics with PromQL™", func() {
+		It("can query for emitted metrics with PromQL™ Instant Queries©", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
@@ -127,7 +118,7 @@ var _ = Describe("LogCache", func() {
 			Expect(vector.Samples[0].Point.GetValue()).To(Equal(10.0))
 		})
 
-		It("can do math on emitted metrics with PromQL™", func() {
+		It("can do math on emitted metrics with PromQL™ Instant Queries©", func() {
 			s := newUUID()
 			s2 := newUUID()
 
@@ -143,15 +134,22 @@ var _ = Describe("LogCache", func() {
 			Expect(vector.Samples[0].Point.GetValue()).To(Equal(20.0))
 		})
 
-		It("performs aggregations on range queries with PromQL™", func() {
+		It("performs aggregations with PromQL™ Range Queries©", func() {
 			s := newUUID()
+			now := time.Now()
 
 			emitGauges([]string{s})
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-				result, err := c.PromQL(ctx, query)
+				result, err := c.PromQLRange(
+					ctx,
+					query,
+					WithPromQLStart(now.Add(-time.Minute)),
+					WithPromQLEnd(now.Add(time.Minute)),
+					WithPromQLStep("15s"),
+				)
 				Expect(err).ToNot(HaveOccurred())
 
 				vector := result.GetVector()
@@ -168,11 +166,6 @@ var _ = Describe("LogCache", func() {
 				cfg.LogCacheCFAuthProxyURL,
 				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
-
-			//grc = logcache.NewShardGroupReaderClient(
-			//	cfg.LogCacheCFAuthProxyURL,
-			//	logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
-			//)
 		})
 
 		It("makes emitted logs available", func() {
@@ -311,6 +304,25 @@ var _ = Describe("LogCache", func() {
 				Expect(vector.Samples).To(HaveLen(1))
 				return vector.Samples[0].Point.GetValue()
 			}, 30).Should(BeEquivalentTo(100000.0))
+		})
+
+		It("performs a range query over a range of time with PromQL™", func() {
+			sourceID := newUUID()
+
+			emitGauges([]string{sourceID})
+
+			start := time.Now()
+			emitGauges([]string{sourceID})
+			end := time.Now()
+
+			emitGauges([]string{sourceID})
+
+			query := fmt.Sprintf("metric{source_id=%q}", sourceID)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			result, err := c.PromQLRange(ctx, query, start, end, 15*time.Second)
+
+			// Expect(vector.Samples).To(HaveLen(10000))
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
