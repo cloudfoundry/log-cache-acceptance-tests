@@ -19,12 +19,13 @@ import (
 
 var _ = Describe("LogCache", func() {
 	var (
-		c *logcache.Client
+		c   *logcache.Client
+		cfg *lca.TestConfig
 	)
 
 	Context("with grpc client", func() {
 		BeforeEach(func() {
-			cfg := lca.Config()
+			cfg = lca.Config()
 			c = logcache.NewClient(
 				cfg.LogCacheAddr,
 				logcache.WithViaGRPC(
@@ -51,7 +52,7 @@ var _ = Describe("LogCache", func() {
 
 			emitLogs([]string{s})
 
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
@@ -66,7 +67,7 @@ var _ = Describe("LogCache", func() {
 			emitGauges([]string{s})
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -82,7 +83,7 @@ var _ = Describe("LogCache", func() {
 			emitGauges([]string{s, s2})
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -99,26 +100,29 @@ var _ = Describe("LogCache", func() {
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 				result, err := c.PromQLRange(
 					ctx,
 					query,
-					WithPromQLStart(now.Add(-time.Minute)),
-					WithPromQLEnd(now.Add(time.Minute)),
-					WithPromQLStep("15s"),
+					logcache.WithPromQLStart(now.Add(-time.Minute)),
+					logcache.WithPromQLEnd(now.Add(time.Minute)),
+					logcache.WithPromQLStep("15s"),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
-				vector := result.GetVector()
-				Expect(vector.Samples).To(HaveLen(1))
-				return vector.Samples[0].Point.GetValue()
+				matrix := result.GetMatrix()
+				Expect(matrix.Series).To(HaveLen(1))
+				series := matrix.Series[0]
+
+				Expect(series.Points).To(HaveLen(1))
+				return series.Points[0].GetValue()
 			}, 30).Should(BeEquivalentTo(100000.0))
 		})
 	})
 
 	Context("with http client", func() {
 		BeforeEach(func() {
-			cfg := lca.Config()
+			cfg = lca.Config()
 			c = logcache.NewClient(
 				cfg.LogCacheCFAuthProxyURL,
 				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
@@ -141,7 +145,7 @@ var _ = Describe("LogCache", func() {
 
 			emitLogs([]string{s})
 
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			meta, err := c.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
@@ -156,7 +160,7 @@ var _ = Describe("LogCache", func() {
 			emitGauges([]string{s})
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -172,7 +176,7 @@ var _ = Describe("LogCache", func() {
 			emitGauges([]string{s, s2})
 
 			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -188,7 +192,7 @@ var _ = Describe("LogCache", func() {
 
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
-				ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 				result, err := c.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -211,7 +215,13 @@ var _ = Describe("LogCache", func() {
 
 			query := fmt.Sprintf("metric{source_id=%q}", sourceID)
 			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			result, err := c.PromQLRange(ctx, query, start, end, 15*time.Second)
+			_, err := c.PromQLRange(
+				ctx,
+				query,
+				logcache.WithPromQLStart(start),
+				logcache.WithPromQLEnd(end),
+				logcache.WithPromQLStep("15s"),
+			)
 
 			// Expect(vector.Samples).To(HaveLen(10000))
 			Expect(err).ToNot(HaveOccurred())
@@ -227,7 +237,7 @@ func newOauth2HTTPClient(cfg *lca.TestConfig) *logcache.Oauth2HTTPClient {
 				InsecureSkipVerify: cfg.SkipCertVerify,
 			},
 		},
-		Timeout: 5 * time.Second,
+		Timeout: cfg.DefaultTimeout,
 	}
 
 	return logcache.NewOauth2HTTPClient(
@@ -253,7 +263,7 @@ func emitLogs(sourceIDs []string) {
 func emitGauges(sourceIDs []string) {
 	cfg := lca.Config()
 	query := strings.Join(sourceIDs, "&sourceIDs=")
-	logurl := fmt.sprintf("http://%s/emit-gauges?sourceids=%s", cfg.logemitteraddr, query)
+	logUrl := fmt.Sprintf("http://%s/emit-gauges?sourceIDs=%s", cfg.LogEmitterAddr, query)
 
 	res, err := http.Get(logUrl)
 
@@ -269,7 +279,7 @@ func waitForLogs() {
 
 func countEnvelopes(start, end time.Time, reader logcache.Reader, sourceID string, totalEmitted int) int {
 	var receivedCount int
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), lca.Config().DefaultTimeout)
 	logcache.Walk(
 		ctx,
 		sourceID,
