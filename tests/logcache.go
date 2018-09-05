@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
 
 	logcache "code.cloudfoundry.org/go-log-cache"
-	"code.cloudfoundry.org/go-log-cache/rpc/logcache_v1"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	lca "github.com/cloudfoundry/log-cache-acceptance-tests"
 	uuid "github.com/nu7hatch/gouuid"
@@ -21,8 +19,7 @@ import (
 
 var _ = Describe("LogCache", func() {
 	var (
-		c   *logcache.Client
-		grc *logcache.ShardGroupReaderClient
+		c *logcache.Client
 	)
 
 	Context("with grpc client", func() {
@@ -61,46 +58,6 @@ var _ = Describe("LogCache", func() {
 
 			count := meta[s].GetCount()
 			Expect(count).To(BeNumerically(">=", 9900))
-		})
-
-		XIt("creates a group and reads from it", func() {
-			s1 := newUUID()
-			s2 := newUUID()
-
-			groupName := newUUID()
-			createGroup(grc, groupName, []string{s1, s2})
-
-			start := time.Now()
-			emitLogs([]string{s1, s2})
-			end := time.Now()
-
-			reader := grc.BuildReader(rand.Uint64())
-			received := countEnvelopes(start, end, reader, groupName, 20000)
-			Expect(received).To(BeNumerically(">=", 2*7500))
-		})
-
-		XIt("can get metadata from a shard group", func() {
-			s1 := newUUID()
-			s2 := newUUID()
-
-			groupName := newUUID()
-			createGroup(grc, groupName, []string{s1, s2})
-
-			emitLogs([]string{s1, s2})
-
-			requestorID := rand.Uint64()
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			grc.Read(ctx, groupName, time.Time{}, requestorID)
-
-			ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
-			shardGroup, err := grc.ShardGroup(ctx, groupName)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(shardGroup.RequesterIDs).To(ConsistOf(requestorID))
-			Expect(shardGroup.SubGroups).To(ConsistOf(
-				logcache.SubGroup{SourceIDs: []string{s1}},
-				logcache.SubGroup{SourceIDs: []string{s2}},
-			))
 		})
 
 		It("can query for emitted metrics with PromQL™ Instant Queries©", func() {
@@ -193,71 +150,6 @@ var _ = Describe("LogCache", func() {
 			Expect(count).To(BeNumerically(">=", 9900))
 		})
 
-		XIt("creates a group and reads from it", func() {
-			s1 := newUUID()
-			s2 := newUUID()
-
-			groupName := newUUID()
-			createGroup(grc, groupName, []string{s1, s2})
-
-			start := time.Now()
-			emitLogs([]string{s1, s2})
-			end := time.Now()
-
-			reader := grc.BuildReader(rand.Uint64())
-			received := countEnvelopes(start, end, reader, groupName, 20000)
-			Expect(received).To(BeNumerically(">=", 2*7500))
-		})
-
-		XIt("can get metadata from a shard group", func() {
-			s1 := newUUID()
-			s2 := newUUID()
-
-			groupName := newUUID()
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go maintainGroup(ctx, groupName, []string{s1, s2}, grc)
-
-			requestorID := rand.Uint64()
-			reader := grc.BuildReader(requestorID)
-
-			start := time.Now()
-			emitLogs([]string{s1, s2})
-			end := time.Now()
-
-			var receivedCount int
-			wctx, _ := context.WithTimeout(ctx, time.Minute)
-			logcache.Walk(
-				wctx,
-				groupName,
-				func(envelopes []*loggregator_v2.Envelope) bool {
-					for _, e := range envelopes {
-						if strings.Contains(string(e.GetLog().GetPayload()), "log message") {
-							receivedCount++
-						}
-					}
-					return receivedCount < 20000
-				},
-				reader,
-				logcache.WithWalkStartTime(start),
-				logcache.WithWalkEndTime(end),
-				logcache.WithWalkBackoff(logcache.NewRetryBackoff(time.Second, 30)),
-				logcache.WithWalkEnvelopeTypes(logcache_v1.EnvelopeType_LOG),
-			)
-
-			Expect(receivedCount).To(BeNumerically(">=", 100))
-
-			shardGroup, err := grc.ShardGroup(ctx, groupName)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(shardGroup.RequesterIDs).To(ConsistOf(requestorID))
-			Expect(shardGroup.SubGroups).To(ConsistOf(
-				logcache.SubGroup{SourceIDs: []string{s1}},
-				logcache.SubGroup{SourceIDs: []string{s2}},
-			))
-		})
-
 		It("can query for emitted metrics with PromQL™", func() {
 			s := newUUID()
 
@@ -344,39 +236,6 @@ func newOauth2HTTPClient(cfg *lca.TestConfig) *logcache.Oauth2HTTPClient {
 		cfg.ClientSecret,
 		logcache.WithOauth2HTTPClient(client),
 	)
-}
-
-func maintainGroup(
-	ctx context.Context,
-	groupName string,
-	sourceIDs []string,
-	client *logcache.ShardGroupReaderClient,
-) {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		for _, sID := range sourceIDs {
-			shardGroupCtx, _ := context.WithTimeout(ctx, time.Second)
-			err := client.SetShardGroup(shardGroupCtx, groupName, sID)
-			if err != nil {
-				fmt.Printf("unable to set shard group: %s\n", err)
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			continue
-		}
-	}
-}
-
-func createGroup(client *logcache.ShardGroupReaderClient, groupName string, sourceIDs []string) {
-	for _, sid := range sourceIDs {
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		err := client.SetShardGroup(ctx, groupName, sid)
-		Expect(err).ToNot(HaveOccurred())
-	}
 }
 
 func emitLogs(sourceIDs []string) {

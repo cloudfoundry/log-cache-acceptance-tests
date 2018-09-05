@@ -9,7 +9,6 @@ import (
 
 type TestConfig struct {
 	LogCacheAddr           string `env:"LOG_CACHE_ADDR,    required"`
-	GroupReaderAddr        string `env:"GROUP_READER_ADDR, required"`
 	LogEmitterAddr         string `env:"LOG_EMITTER_ADDR,  required"`
 	LogCacheCFAuthProxyURL string `env:"LOG_CACHE_CF_AUTH_PROXY_URL",  required"`
 
