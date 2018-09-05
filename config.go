@@ -45,7 +45,7 @@ func Config() *TestConfig {
 
 	cfg, err := LoadConfig()
 	if err != nil {
-		log.Fatalf("failed to load drain test config: %s", err)
+		log.Fatalf("failed to load log cache test config: %s", err)
 	}
 	config = cfg
 	return config
