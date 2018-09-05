@@ -94,19 +94,19 @@ var _ = Describe("LogCache", func() {
 
 		It("performs aggregations with PromQL™ Range Queries©", func() {
 			s := newUUID()
-			now := time.Now()
 
 			emitGauges([]string{s})
+			now := time.Now()
 
-			Consistently(func() float64 {
-				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
+			Eventually(func() float64 {
+				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[10s])", s)
 				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 				result, err := c.PromQLRange(
 					ctx,
 					query,
 					logcache.WithPromQLStart(now.Add(-time.Minute)),
-					logcache.WithPromQLEnd(now.Add(time.Minute)),
-					logcache.WithPromQLStep("15s"),
+					logcache.WithPromQLEnd(now),
+					logcache.WithPromQLStep("5s"),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -114,9 +114,15 @@ var _ = Describe("LogCache", func() {
 				Expect(matrix.Series).To(HaveLen(1))
 				series := matrix.Series[0]
 
-				Expect(series.Points).To(HaveLen(1))
-				return series.Points[0].GetValue()
-			}, 30).Should(BeEquivalentTo(100000.0))
+				Expect(len(series.Points)).To(BeNumerically(">", 3))
+
+				var sum float64
+				for _, point := range series.Points {
+					sum += point.GetValue()
+				}
+
+				return sum
+			}, 30).Should(BeEquivalentTo(2 * 100000.0))
 		})
 	})
 
@@ -185,7 +191,7 @@ var _ = Describe("LogCache", func() {
 			Expect(vector.Samples[0].Point.GetValue()).To(Equal(20.0))
 		})
 
-		It("performs aggregations on range queries with PromQL™", func() {
+		It("performs aggregations with PromQL™", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
@@ -202,29 +208,37 @@ var _ = Describe("LogCache", func() {
 			}, 30).Should(BeEquivalentTo(100000.0))
 		})
 
-		It("performs a range query over a range of time with PromQL™", func() {
-			sourceID := newUUID()
+		It("performs aggregations with PromQL™ Range Queries©", func() {
+			s := newUUID()
 
-			emitGauges([]string{sourceID})
+			emitGauges([]string{s})
+			now := time.Now()
 
-			start := time.Now()
-			emitGauges([]string{sourceID})
-			end := time.Now()
+			Eventually(func() float64 {
+				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[10s])", s)
+				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+				result, err := c.PromQLRange(
+					ctx,
+					query,
+					logcache.WithPromQLStart(now.Add(-time.Minute)),
+					logcache.WithPromQLEnd(now),
+					logcache.WithPromQLStep("5s"),
+				)
+				Expect(err).ToNot(HaveOccurred())
 
-			emitGauges([]string{sourceID})
+				matrix := result.GetMatrix()
+				Expect(matrix.Series).To(HaveLen(1))
+				series := matrix.Series[0]
 
-			query := fmt.Sprintf("metric{source_id=%q}", sourceID)
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err := c.PromQLRange(
-				ctx,
-				query,
-				logcache.WithPromQLStart(start),
-				logcache.WithPromQLEnd(end),
-				logcache.WithPromQLStep("15s"),
-			)
+				Expect(len(series.Points)).To(BeNumerically(">", 3))
 
-			// Expect(vector.Samples).To(HaveLen(10000))
-			Expect(err).ToNot(HaveOccurred())
+				var sum float64
+				for _, point := range series.Points {
+					sum += point.GetValue()
+				}
+
+				return sum
+			}, 30).Should(BeEquivalentTo(2 * 100000.0))
 		})
 	})
 
