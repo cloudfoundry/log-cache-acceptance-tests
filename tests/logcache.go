@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	logcache "code.cloudfoundry.org/go-log-cache"
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
+	logcache "code.cloudfoundry.org/log-cache/client"
 	lca "github.com/cloudfoundry/log-cache-acceptance-tests"
 	uuid "github.com/nu7hatch/gouuid"
 	. "github.com/onsi/ginkgo"
