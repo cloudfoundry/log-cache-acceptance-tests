@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	logcache "code.cloudfoundry.org/log-cache/client"
+	"code.cloudfoundry.org/log-cache/pkg/client"
 	lca "github.com/cloudfoundry/log-cache-acceptance-tests"
 	uuid "github.com/nu7hatch/gouuid"
 	. "github.com/onsi/ginkgo"
@@ -19,16 +19,16 @@ import (
 
 var _ = Describe("LogCache", func() {
 	var (
-		c   *logcache.Client
+		c   *client.Client
 		cfg *lca.TestConfig
 	)
 
 	Context("with grpc client", func() {
 		BeforeEach(func() {
 			cfg = lca.Config()
-			c = logcache.NewClient(
+			c = client.NewClient(
 				cfg.LogCacheAddr,
-				logcache.WithViaGRPC(
+				client.WithViaGRPC(
 					grpc.WithTransportCredentials(
 						cfg.TLS.Credentials("log-cache"),
 					),
@@ -104,9 +104,9 @@ var _ = Describe("LogCache", func() {
 				result, err := c.PromQLRange(
 					ctx,
 					query,
-					logcache.WithPromQLStart(now.Add(-time.Minute)),
-					logcache.WithPromQLEnd(now),
-					logcache.WithPromQLStep("5s"),
+					client.WithPromQLStart(now.Add(-time.Minute)),
+					client.WithPromQLEnd(now),
+					client.WithPromQLStep("5s"),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -129,9 +129,9 @@ var _ = Describe("LogCache", func() {
 	Context("with http client", func() {
 		BeforeEach(func() {
 			cfg = lca.Config()
-			c = logcache.NewClient(
+			c = client.NewClient(
 				cfg.LogCacheCFAuthProxyURL,
-				logcache.WithHTTPClient(newOauth2HTTPClient(cfg)),
+				client.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
 		})
 
@@ -220,9 +220,9 @@ var _ = Describe("LogCache", func() {
 				result, err := c.PromQLRange(
 					ctx,
 					query,
-					logcache.WithPromQLStart(now.Add(-time.Minute)),
-					logcache.WithPromQLEnd(now),
-					logcache.WithPromQLStep("5s"),
+					client.WithPromQLStart(now.Add(-time.Minute)),
+					client.WithPromQLEnd(now),
+					client.WithPromQLStep("5s"),
 				)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -244,8 +244,8 @@ var _ = Describe("LogCache", func() {
 
 })
 
-func newOauth2HTTPClient(cfg *lca.TestConfig) *logcache.Oauth2HTTPClient {
-	client := &http.Client{
+func newOauth2HTTPClient(cfg *lca.TestConfig) *client.Oauth2HTTPClient {
+	oauth_client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: cfg.SkipCertVerify,
@@ -254,11 +254,11 @@ func newOauth2HTTPClient(cfg *lca.TestConfig) *logcache.Oauth2HTTPClient {
 		Timeout: cfg.DefaultTimeout,
 	}
 
-	return logcache.NewOauth2HTTPClient(
+	return client.NewOauth2HTTPClient(
 		cfg.UAAURL,
 		cfg.ClientID,
 		cfg.ClientSecret,
-		logcache.WithOauth2HTTPClient(client),
+		client.WithOauth2HTTPClient(oauth_client),
 	)
 }
 
@@ -291,10 +291,10 @@ func waitForLogs() {
 	time.Sleep(cfg.WaitForLogsTimeout)
 }
 
-func countEnvelopes(start, end time.Time, reader logcache.Reader, sourceID string, totalEmitted int) int {
+func countEnvelopes(start, end time.Time, reader client.Reader, sourceID string, totalEmitted int) int {
 	var receivedCount int
 	ctx, _ := context.WithTimeout(context.Background(), lca.Config().DefaultTimeout)
-	logcache.Walk(
+	client.Walk(
 		ctx,
 		sourceID,
 		func(envelopes []*loggregator_v2.Envelope) bool {
@@ -302,9 +302,9 @@ func countEnvelopes(start, end time.Time, reader logcache.Reader, sourceID strin
 			return receivedCount < totalEmitted
 		},
 		reader,
-		logcache.WithWalkStartTime(start),
-		logcache.WithWalkEndTime(end),
-		logcache.WithWalkBackoff(logcache.NewRetryBackoff(50*time.Millisecond, 100)),
+		client.WithWalkStartTime(start),
+		client.WithWalkEndTime(end),
+		client.WithWalkBackoff(client.NewRetryBackoff(50*time.Millisecond, 100)),
 	)
 
 	return receivedCount
