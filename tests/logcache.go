@@ -82,7 +82,7 @@ var _ = Describe("LogCache", func() {
 
 			emitGauges([]string{s, s2})
 
-			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
+			query := fmt.Sprintf("metric{source_id=%q} + ignoring (source_id) metric{source_id=%q}", s, s2)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
@@ -181,7 +181,7 @@ var _ = Describe("LogCache", func() {
 
 			emitGauges([]string{s, s2})
 
-			query := fmt.Sprintf("metric{source_id=%q} + metric{source_id=%q}", s, s2)
+			query := fmt.Sprintf("metric{source_id=%q} + ignoring (source_id) metric{source_id=%q}", s, s2)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
