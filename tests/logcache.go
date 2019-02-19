@@ -124,6 +124,72 @@ var _ = Describe("LogCache", func() {
 				return sum
 			}, 30).Should(BeEquivalentTo(2 * 100000.0))
 		})
+
+		It("validates that CPU for the doppler VM is under 50%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_cpu_sys{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 50))
+		})
+
+		It("validates that memory for the doppler VM is under 90%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_mem_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 90))
+		})
+
+		It("validates that swapping for the doppler VM is under 5%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_swap_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 5))
+		})
 	})
 
 	Context("with http client", func() {
@@ -240,8 +306,73 @@ var _ = Describe("LogCache", func() {
 				return sum
 			}, 30).Should(BeEquivalentTo(2 * 100000.0))
 		})
-	})
 
+		It("validates that CPU for the doppler VM is under 50%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_cpu_sys{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 50))
+		})
+
+		It("validates that memory for the doppler VM is under 90%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_mem_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 90))
+		})
+
+		It("validates that swapping for the doppler VM is under 5%", func() {
+			now := time.Now()
+			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+			result, err := c.PromQLRange(
+				ctx,
+				"avg_over_time(system_swap_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				client.WithPromQLStart(now.Add(-time.Minute)),
+				client.WithPromQLEnd(now),
+				client.WithPromQLStep("10s"),
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			matrix := result.GetMatrix()
+			series := matrix.Series[0]
+
+			var sum float64
+			for _, point := range series.Points {
+				sum += point.GetValue()
+			}
+			Expect(sum / float64(len(series.Points))).To(BeNumerically("<", 5))
+		})
+	})
 })
 
 func newOauth2HTTPClient(cfg *lca.TestConfig) *client.Oauth2HTTPClient {
