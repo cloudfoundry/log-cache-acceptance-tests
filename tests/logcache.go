@@ -111,6 +111,7 @@ var _ = Describe("LogCache", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				matrix := result.GetMatrix()
+				Expect(matrix).ToNot(BeNil())
 				Expect(matrix.Series).To(HaveLen(1))
 				series := matrix.Series[0]
 
@@ -138,6 +139,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -160,6 +162,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -182,6 +185,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -293,6 +297,7 @@ var _ = Describe("LogCache", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				matrix := result.GetMatrix()
+				Expect(matrix).ToNot(BeNil())
 				Expect(matrix.Series).To(HaveLen(1))
 				series := matrix.Series[0]
 
@@ -320,6 +325,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -342,6 +348,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -364,6 +371,7 @@ var _ = Describe("LogCache", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			matrix := result.GetMatrix()
+			Expect(matrix).ToNot(BeNil())
 			series := matrix.Series[0]
 
 			var sum float64
