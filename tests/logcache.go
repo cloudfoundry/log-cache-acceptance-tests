@@ -131,7 +131,7 @@ var _ = Describe("LogCache", func() {
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQLRange(
 				ctx,
-				"avg_over_time(system_cpu_sys{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				`avg_over_time(system_cpu_sys{source_id="system_metrics_agent", job="doppler"}[1m])`,
 				client.WithPromQLStart(now.Add(-time.Minute)),
 				client.WithPromQLEnd(now),
 				client.WithPromQLStep("10s"),
@@ -140,6 +140,7 @@ var _ = Describe("LogCache", func() {
 
 			matrix := result.GetMatrix()
 			Expect(matrix).ToNot(BeNil())
+			Expect(matrix.Series).ToNot(BeEmpty())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -154,7 +155,7 @@ var _ = Describe("LogCache", func() {
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 			result, err := c.PromQLRange(
 				ctx,
-				"avg_over_time(system_mem_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
+				`avg_over_time(system_mem_percent{source_id="system_metrics_agent", job="doppler"}[1m])`,
 				client.WithPromQLStart(now.Add(-time.Minute)),
 				client.WithPromQLEnd(now),
 				client.WithPromQLStep("10s"),
@@ -163,6 +164,7 @@ var _ = Describe("LogCache", func() {
 
 			matrix := result.GetMatrix()
 			Expect(matrix).ToNot(BeNil())
+			Expect(matrix.Series).ToNot(BeEmpty())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -186,6 +188,7 @@ var _ = Describe("LogCache", func() {
 
 			matrix := result.GetMatrix()
 			Expect(matrix).ToNot(BeNil())
+			Expect(matrix.Series).ToNot(BeEmpty())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -349,6 +352,7 @@ var _ = Describe("LogCache", func() {
 
 			matrix := result.GetMatrix()
 			Expect(matrix).ToNot(BeNil())
+			Expect(matrix.Series).ToNot(BeEmpty())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -372,6 +376,7 @@ var _ = Describe("LogCache", func() {
 
 			matrix := result.GetMatrix()
 			Expect(matrix).ToNot(BeNil())
+			Expect(matrix.Series).ToNot(BeEmpty())
 			series := matrix.Series[0]
 
 			var sum float64
@@ -384,7 +389,7 @@ var _ = Describe("LogCache", func() {
 })
 
 func newOauth2HTTPClient(cfg *lca.TestConfig) *client.Oauth2HTTPClient {
-	oauth_client := &http.Client{
+	oauthClient := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: cfg.SkipCertVerify,
@@ -397,7 +402,7 @@ func newOauth2HTTPClient(cfg *lca.TestConfig) *client.Oauth2HTTPClient {
 		cfg.UAAURL,
 		cfg.ClientID,
 		cfg.ClientSecret,
-		client.WithOauth2HTTPClient(oauth_client),
+		client.WithOauth2HTTPClient(oauthClient),
 	)
 }
 
