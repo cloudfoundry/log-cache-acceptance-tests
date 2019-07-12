@@ -256,7 +256,7 @@ var _ = Describe("LogCache", func() {
 			emitGauges([]string{s})
 
 			Eventually(func() float64 {
-				query := `sum_over_time(metric{source_id=%q}[10s])`
+				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[10s])", s)
 				series := minuteRangeQuery(query, client.WithPromQLStep("5s"))
 
 				Expect(len(series.Points)).To(BeNumerically(">", 3))
