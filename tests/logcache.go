@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"code.cloudfoundry.org/log-cache/pkg/rpc/logcache_v1"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -19,14 +20,36 @@ import (
 
 var _ = Describe("LogCache", func() {
 	var (
-		c   *client.Client
-		cfg *lca.TestConfig
+		logCacheClient *client.Client
+		cfg            *lca.TestConfig
 	)
+
+	var minuteRangeQuery = func(query string, opts ...client.PromQLOption) *logcache_v1.PromQL_Series {
+		now := time.Now()
+		ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
+
+		opts = append(opts,
+			client.WithPromQLStart(now.Add(-time.Minute)),
+			client.WithPromQLEnd(now),
+		)
+		result, err := logCacheClient.PromQLRange(
+			ctx,
+			query,
+			opts...,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		matrix := result.GetMatrix()
+		Expect(matrix).ToNot(BeNil())
+		Expect(matrix.Series).ToNot(BeEmpty())
+
+		return matrix.Series[0]
+	}
 
 	Context("with grpc client", func() {
 		BeforeEach(func() {
 			cfg = lca.Config()
-			c = client.NewClient(
+			logCacheClient = client.NewClient(
 				cfg.LogCacheAddr,
 				client.WithViaGRPC(
 					grpc.WithTransportCredentials(
@@ -43,7 +66,7 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 			end := time.Now()
 
-			received := countEnvelopes(start, end, c.Read, s, 10000)
+			received := countEnvelopes(start, end, logCacheClient.Read, s, 10000)
 			Expect(received).To(BeNumerically(">=", 9900))
 		})
 
@@ -53,7 +76,7 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			meta, err := c.Meta(ctx)
+			meta, err := logCacheClient.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
 
@@ -68,7 +91,7 @@ var _ = Describe("LogCache", func() {
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQL(ctx, query)
+			result, err := logCacheClient.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -84,7 +107,7 @@ var _ = Describe("LogCache", func() {
 
 			query := fmt.Sprintf("metric{source_id=%q} + ignoring (source_id) metric{source_id=%q}", s, s2)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQL(ctx, query)
+			result, err := logCacheClient.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -96,25 +119,10 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			now := time.Now()
 
 			Eventually(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[10s])", s)
-				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-				result, err := c.PromQLRange(
-					ctx,
-					query,
-					client.WithPromQLStart(now.Add(-time.Minute)),
-					client.WithPromQLEnd(now),
-					client.WithPromQLStep("5s"),
-				)
-				Expect(err).ToNot(HaveOccurred())
-
-				matrix := result.GetMatrix()
-				Expect(matrix).ToNot(BeNil())
-				Expect(matrix.Series).To(HaveLen(1))
-				series := matrix.Series[0]
-
+				series := minuteRangeQuery(query, client.WithPromQLStep("5s"))
 				Expect(len(series.Points)).To(BeNumerically(">", 3))
 
 				var sum float64
@@ -127,21 +135,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that CPU for the doppler VM is under 50%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				`avg_over_time(system_cpu_sys{source_id="system_metrics_agent", job="doppler"}[1m])`,
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			Expect(matrix.Series).ToNot(BeEmpty())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_cpu_sys{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
@@ -151,21 +146,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that memory for the doppler VM is under 90%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				`avg_over_time(system_mem_percent{source_id="system_metrics_agent", job="doppler"}[1m])`,
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			Expect(matrix.Series).ToNot(BeEmpty())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_mem_percent{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
@@ -175,21 +157,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that swapping for the doppler VM is under 5%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				"avg_over_time(system_swap_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			Expect(matrix.Series).ToNot(BeEmpty())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_swap_percent{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
@@ -202,7 +171,7 @@ var _ = Describe("LogCache", func() {
 	Context("with http client", func() {
 		BeforeEach(func() {
 			cfg = lca.Config()
-			c = client.NewClient(
+			logCacheClient = client.NewClient(
 				cfg.LogCacheCFAuthProxyURL,
 				client.WithHTTPClient(newOauth2HTTPClient(cfg)),
 			)
@@ -215,7 +184,7 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 			end := time.Now()
 
-			received := countEnvelopes(start, end, c.Read, s, 10000)
+			received := countEnvelopes(start, end, logCacheClient.Read, s, 10000)
 			Expect(received).To(BeNumerically(">=", 9000))
 		})
 
@@ -225,7 +194,7 @@ var _ = Describe("LogCache", func() {
 			emitLogs([]string{s})
 
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			meta, err := c.Meta(ctx)
+			meta, err := logCacheClient.Meta(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(meta).To(HaveKey(s))
 
@@ -240,7 +209,7 @@ var _ = Describe("LogCache", func() {
 
 			query := fmt.Sprintf("metric{source_id=%q}", s)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQL(ctx, query)
+			result, err := logCacheClient.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -256,7 +225,7 @@ var _ = Describe("LogCache", func() {
 
 			query := fmt.Sprintf("metric{source_id=%q} + ignoring (source_id) metric{source_id=%q}", s, s2)
 			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQL(ctx, query)
+			result, err := logCacheClient.PromQL(ctx, query)
 			Expect(err).ToNot(HaveOccurred())
 
 			vector := result.GetVector()
@@ -272,7 +241,7 @@ var _ = Describe("LogCache", func() {
 			Consistently(func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
 				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-				result, err := c.PromQL(ctx, query)
+				result, err := logCacheClient.PromQL(ctx, query)
 				Expect(err).ToNot(HaveOccurred())
 
 				vector := result.GetVector()
@@ -285,24 +254,10 @@ var _ = Describe("LogCache", func() {
 			s := newUUID()
 
 			emitGauges([]string{s})
-			now := time.Now()
 
 			Eventually(func() float64 {
-				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[10s])", s)
-				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-				result, err := c.PromQLRange(
-					ctx,
-					query,
-					client.WithPromQLStart(now.Add(-time.Minute)),
-					client.WithPromQLEnd(now),
-					client.WithPromQLStep("5s"),
-				)
-				Expect(err).ToNot(HaveOccurred())
-
-				matrix := result.GetMatrix()
-				Expect(matrix).ToNot(BeNil())
-				Expect(matrix.Series).To(HaveLen(1))
-				series := matrix.Series[0]
+				query := `sum_over_time(metric{source_id=%q}[10s])`
+				series := minuteRangeQuery(query, client.WithPromQLStep("5s"))
 
 				Expect(len(series.Points)).To(BeNumerically(">", 3))
 
@@ -316,20 +271,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that CPU for the doppler VM is under 50%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				"avg_over_time(system_cpu_sys{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_cpu_sys{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
@@ -339,21 +282,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that memory for the doppler VM is under 90%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				"avg_over_time(system_mem_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			Expect(matrix.Series).ToNot(BeEmpty())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_mem_percent{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
@@ -363,21 +293,8 @@ var _ = Describe("LogCache", func() {
 		})
 
 		It("validates that swapping for the doppler VM is under 5%", func() {
-			now := time.Now()
-			ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
-			result, err := c.PromQLRange(
-				ctx,
-				"avg_over_time(system_swap_percent{source_id=\"system_metrics_agent\", job=\"doppler\"}[1m])",
-				client.WithPromQLStart(now.Add(-time.Minute)),
-				client.WithPromQLEnd(now),
-				client.WithPromQLStep("10s"),
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			matrix := result.GetMatrix()
-			Expect(matrix).ToNot(BeNil())
-			Expect(matrix.Series).ToNot(BeEmpty())
-			series := matrix.Series[0]
+			query := `avg_over_time(system_swap_percent{source_id="system_metrics_agent", job="doppler"}[1m])`
+			series := minuteRangeQuery(query, client.WithPromQLStep("10s"))
 
 			var sum float64
 			for _, point := range series.Points {
