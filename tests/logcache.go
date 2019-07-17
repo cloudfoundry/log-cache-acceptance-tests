@@ -238,7 +238,8 @@ var _ = Describe("LogCache", func() {
 
 			emitGauges([]string{s})
 
-			Consistently(func() float64 {
+			// log-cache-emitter emits 10,000 gauges with a value of 10.0
+			performQuery := func() float64 {
 				query := fmt.Sprintf("sum_over_time(metric{source_id=%q}[5m])", s)
 				ctx, _ := context.WithTimeout(context.Background(), cfg.DefaultTimeout)
 				result, err := logCacheClient.PromQL(ctx, query)
@@ -247,7 +248,11 @@ var _ = Describe("LogCache", func() {
 				vector := result.GetVector()
 				Expect(vector.Samples).To(HaveLen(1))
 				return vector.Samples[0].Point.GetValue()
-			}, 30).Should(BeEquivalentTo(100000.0))
+			}
+
+			// wait for gauges to be processed
+			Eventually(performQuery, 30).Should(BeEquivalentTo(100000.0))
+			Consistently(performQuery, 30).Should(BeEquivalentTo(100000.0))
 		})
 
 		It("performs aggregations with PromQL™ Range Queries©", func() {
